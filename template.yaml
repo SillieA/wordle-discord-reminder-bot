@@ -1,0 +1,60 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+
+Description: >
+  WordleReminderDiscordBot — A serverless Discord bot that sends daily
+  reminders to users who haven't completed their Wordle puzzle.
+
+Parameters:
+  DiscordToken:
+    Type: String
+    NoEcho: true
+    Description: Discord bot token
+
+  ChannelId:
+    Type: String
+    Description: Discord channel ID where Wordle scores are posted
+
+  UserIds:
+    Type: String
+    Description: Comma-separated Discord user IDs to track (e.g. "111111,222222,333333")
+
+  Schedule:
+    Type: String
+    Default: "cron(0 21 * * ? *)"
+    Description: EventBridge schedule expression (default 9 PM UTC daily)
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures:
+      - arm64
+    MemorySize: 128
+    Timeout: 10
+
+Resources:
+  WordleReminderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: WordleReminderBot
+      Handler: lambda_function.lambda_handler
+      CodeUri: src/
+      Description: Sends daily Wordle reminders via Discord
+      Environment:
+        Variables:
+          DISCORD_TOKEN: !Ref DiscordToken
+          CHANNEL_ID: !Ref ChannelId
+          USER_IDS: !Ref UserIds
+      Events:
+        DailySchedule:
+          Type: Schedule
+          Properties:
+            Schedule: !Ref Schedule
+            Name: WordleReminderDailyTrigger
+            Description: Triggers the Wordle reminder bot once per day
+            Enabled: true
+
+Outputs:
+  WordleReminderFunctionArn:
+    Description: ARN of the Wordle Reminder Lambda function
+    Value: !GetAtt WordleReminderFunction.Arn
