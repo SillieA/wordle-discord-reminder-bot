@@ -32,3 +32,9 @@ build/
 
 # pytest
 .pytest_cache/
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+terraform/lambda_function.zip
+terraform/*.tfplan
