@@ -112,6 +112,22 @@ class TestLambdaHandler(unittest.TestCase):
     @patch("lambda_function.datetime")
     @patch("lambda_function.send_reminder")
     @patch("lambda_function.get_recent_messages")
+    def test_no_reminder_when_untracked_user_completed(self, mock_get_msgs, mock_send, mock_dt):
+        """A completion by a user not in USER_IDS should still suppress the reminder."""
+        mock_dt.now.return_value.date.return_value = self.TODAY
+        # "999" is not in USER_IDS ("111,222,333")
+        mock_get_msgs.return_value = self._make_messages(["999"])
+
+        with patch.dict(os.environ, self.ENV):
+            result = lambda_handler({}, None)
+
+        mock_send.assert_not_called()
+        self.assertEqual(result["statusCode"], 200)
+        self.assertIn("No reminder needed", result["body"])
+
+    @patch("lambda_function.datetime")
+    @patch("lambda_function.send_reminder")
+    @patch("lambda_function.get_recent_messages")
     def test_no_reminder_when_all_completed(self, mock_get_msgs, mock_send, mock_dt):
         mock_dt.now.return_value.date.return_value = self.TODAY
         mock_get_msgs.return_value = self._make_messages(["111", "222", "333"])
