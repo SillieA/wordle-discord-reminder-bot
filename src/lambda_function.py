@@ -1,5 +1,6 @@
 import json
 import os
+import random
 import urllib.request
 import urllib.error
 from datetime import date, timezone, datetime
@@ -8,6 +9,11 @@ DISCORD_API_BASE = "https://discord.com/api/v10"
 
 # Wordle epoch: puzzle #0 was on 2021-06-19
 WORDLE_EPOCH = date(2021, 6, 19)
+REMINDER_TEMPLATES = [
+    "🟨🟩 **Wordle Reminder!** 🟩🟨\n\n{mentions}\n\nYou haven't posted your Wordle #{wordle_number} result yet! Get on it! 🧩",
+    "⏰ {mentions} Wordle #{wordle_number} is waiting for you. Drop your score in the chat!",
+    "🚨 {mentions} no Wordle #{wordle_number} post yet — time to solve and share!",
+]
 
 
 def get_wordle_number(today: date) -> int:
@@ -54,11 +60,8 @@ def find_wordle_completions(messages: list[dict], today: date) -> set[str]:
 def send_reminder(channel_id: str, token: str, user_ids: list[str], wordle_number: int) -> dict:
     """Send a reminder message mentioning the given users."""
     mentions = " ".join(f"<@{uid}>" for uid in user_ids)
-    content = (
-        "🟨🟩 **Wordle Reminder!** 🟩🟨\n\n"
-        f"{mentions}\n\n"
-        f"You haven't posted your Wordle #{wordle_number} result yet! Get on it! 🧩"
-    )
+    template = random.choice(REMINDER_TEMPLATES)
+    content = template.format(mentions=mentions, wordle_number=wordle_number)
     body = {
         "content": content,
         "allowed_mentions": {
@@ -81,12 +84,10 @@ def lambda_handler(event: dict, context) -> dict:
     messages = get_recent_messages(channel_id, token)
     completed = find_wordle_completions(messages, today)
 
-    pending = [uid for uid in user_ids if uid not in completed]
-
-    if not pending:
-        print("Everyone has already posted their Wordle result. No reminder needed.")
+    if completed:
+        print("At least one user has already posted their Wordle result. No reminder needed.")
         return {"statusCode": 200, "body": "No reminder needed"}
 
-    print(f"Sending reminder to {len(pending)} user(s): {pending}")
-    send_reminder(channel_id, token, pending, wordle_number)
-    return {"statusCode": 200, "body": f"Reminder sent to {len(pending)} user(s)"}
+    print(f"Sending reminder to {len(user_ids)} user(s): {user_ids}")
+    send_reminder(channel_id, token, user_ids, wordle_number)
+    return {"statusCode": 200, "body": f"Reminder sent to {len(user_ids)} user(s)"}

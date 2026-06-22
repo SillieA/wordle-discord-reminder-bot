@@ -97,22 +97,17 @@ class TestLambdaHandler(unittest.TestCase):
     @patch("lambda_function.datetime")
     @patch("lambda_function.send_reminder")
     @patch("lambda_function.get_recent_messages")
-    def test_sends_reminder_for_missing_users(self, mock_get_msgs, mock_send, mock_dt):
+    def test_no_reminder_when_any_user_completed(self, mock_get_msgs, mock_send, mock_dt):
         mock_dt.now.return_value.date.return_value = self.TODAY
-        # Only user 111 posted; 222 and 333 should be reminded
+        # Any completion means no reminder is sent.
         mock_get_msgs.return_value = self._make_messages(["111"])
-        mock_send.return_value = {"id": "msg_new"}
 
         with patch.dict(os.environ, self.ENV):
             result = lambda_handler({}, None)
 
-        mock_send.assert_called_once()
-        call_args = mock_send.call_args
-        reminded_users = call_args.args[2]  # third positional arg: user_ids
-        self.assertNotIn("111", reminded_users)
-        self.assertIn("222", reminded_users)
-        self.assertIn("333", reminded_users)
+        mock_send.assert_not_called()
         self.assertEqual(result["statusCode"], 200)
+        self.assertIn("No reminder needed", result["body"])
 
     @patch("lambda_function.datetime")
     @patch("lambda_function.send_reminder")
@@ -158,13 +153,16 @@ class TestLambdaHandler(unittest.TestCase):
 
 class TestSendReminder(unittest.TestCase):
     @patch("lambda_function.discord_request")
-    def test_message_format(self, mock_req):
+    @patch("lambda_function.random.choice")
+    def test_message_format(self, mock_choice, mock_req):
+        mock_choice.return_value = "Ping {mentions} for Wordle #{wordle_number}"
         mock_req.return_value = {"id": "new_msg"}
         send_reminder("channel123", "token456", ["111", "222"], 934)
 
         mock_req.assert_called_once()
+        mock_choice.assert_called_once()
         _method, _path, _token, body = mock_req.call_args.args
-        self.assertIn("Wordle Reminder", body["content"])
+        self.assertIn("Ping", body["content"])
         self.assertIn("#934", body["content"])
         self.assertIn("<@111>", body["content"])
         self.assertIn("<@222>", body["content"])
