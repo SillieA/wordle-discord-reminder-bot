@@ -178,9 +178,9 @@ sam deploy --parameter-overrides "UserIds=111,222,333,444"
 2. The Lambda fetches the **last 100 messages** from the configured Discord channel
 3. It looks for messages posted **today** that contain `"Wordle"` and `"/6"` (the standard Wordle share format, e.g. `Wordle 1,234 3/6` or `Wordle 1,234 X/6`)
 4. It calculates the **correct puzzle number** based on the Wordle epoch (puzzle #0 = 2021-06-19)
-5. Any tracked user who has **not** posted a matching message is added to the reminder list
-6. If everyone has already posted, **no message is sent**
-7. Otherwise, a reminder message is sent to the channel **@mentioning** only the users who haven't completed their Wordle yet
+5. If **any tracked user** has already posted a matching message, **no reminder message is sent**
+6. If none of the tracked users have posted yet, a reminder message is sent to the channel **@mentioning all tracked users**
+7. The reminder text is chosen randomly from built-in templates
 
 **Example reminder:**
 ```
