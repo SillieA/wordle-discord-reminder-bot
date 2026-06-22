@@ -10,9 +10,15 @@ DISCORD_API_BASE = "https://discord.com/api/v10"
 # Wordle epoch: puzzle #0 was on 2021-06-19
 WORDLE_EPOCH = date(2021, 6, 19)
 REMINDER_TEMPLATES = [
-    "🟨🟩 **Wordle Reminder!** 🟩🟨\n\n{mentions}\n\nYou haven't posted your Wordle #{wordle_number} result yet! Get on it! 🧩",
-    "⏰ {mentions} Wordle #{wordle_number} is waiting for you. Drop your score in the chat!",
-    "🚨 {mentions} no Wordle #{wordle_number} post yet — time to solve and share!",
+    "Oi {mentions}\n\nYou lazy prick. Do a wordle or we lose the streak",
+    "Twatface! I mean {mentions}, do the fucking wordle - our streak is at stake",
+    "Help me obi {mentions} kenobi, you're my only hope",
+    "SomeBODY once told me that {mentions} should do the wordle",
+    "When I was,\n a young boy,\n my {mentions},\n took me into the city,\n to do todays wordle",
+    "{mentions}, {mentions}, {mentions}",
+    "{mentions} - Isaac said he'd give you a cheeky handy if you do todays wordle",
+    "I believe in a thing called {mentions}, just listen to the rhythm of the wordle",
+    "{mentions}, try TWATS as your first word"
 ]
 
 
