@@ -56,7 +56,9 @@ def find_wordle_completions(messages: list[dict], today: date) -> set[str]:
         if not timestamp.startswith(today_str):
             continue
         content = msg.get("content", "")
-        if "Wordle" in content and "/6" in content:
+        is_standard_share = "Wordle" in content and "/6" in content
+        is_app_share = "finished game" in content and "Wordle" in content
+        if is_standard_share or is_app_share:
             author_id = msg.get("author", {}).get("id")
             if author_id:
                 completed.add(author_id)
