@@ -75,6 +75,24 @@ class TestFindWordleCompletions(unittest.TestCase):
         completed = find_wordle_completions(messages, date(2024, 1, 15))
         self.assertEqual(completed, {"111", "222"})
 
+    def test_detects_app_share_single_game(self):
+        """Discord Wordle app messages like '1 finished game of Wordle' should be detected."""
+        messages = [_make_message("555", "JoeTheLandWiltshire was playing\n1 finished game of Wordle", self.TODAY)]
+        completed = find_wordle_completions(messages, date(2024, 1, 15))
+        self.assertIn("555", completed)
+
+    def test_detects_app_share_multiple_games(self):
+        """App messages with 'finished games of Wordle' (plural) should also be detected."""
+        messages = [_make_message("666", "SomeUser was playing\n2 finished games of Wordle", self.TODAY)]
+        completed = find_wordle_completions(messages, date(2024, 1, 15))
+        self.assertIn("666", completed)
+
+    def test_ignores_app_share_from_yesterday(self):
+        """App-format messages from yesterday should not count."""
+        messages = [_make_message("777", "OldUser was playing\n1 finished game of Wordle", "2024-01-14")]
+        completed = find_wordle_completions(messages, date(2024, 1, 15))
+        self.assertNotIn("777", completed)
+
     def test_empty_messages(self):
         self.assertEqual(find_wordle_completions([], date(2024, 1, 15)), set())
 
