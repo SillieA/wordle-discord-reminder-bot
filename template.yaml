@@ -21,7 +21,7 @@ Parameters:
 
   Schedule:
     Type: String
-    Default: "cron(0 21 * * ? *)"
+    Default: "cron(0 20 * * ? *)"
     Description: >-
       EventBridge schedule expression for 9 PM UK time.
       Use cron(0 21 * * ? *) for GMT (winter) or cron(0 20 * * ? *) for BST (summer).
