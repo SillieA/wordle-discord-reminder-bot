@@ -5,6 +5,7 @@ import unittest
 import urllib.error
 from datetime import date, timezone, datetime
 from unittest.mock import MagicMock, patch
+from zoneinfo import ZoneInfo
 
 # Allow importing from src/ without installing the package
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -87,11 +88,23 @@ class TestFindWordleCompletions(unittest.TestCase):
         completed = find_wordle_completions(messages, date(2024, 1, 15))
         self.assertIn("666", completed)
 
+    def test_detects_playing_without_finish(self):
+        """A 'was playing' message alone (e.g. in-progress share) should suppress the reminder."""
+        messages = [_make_message("888", "timbo was playing", self.TODAY)]
+        completed = find_wordle_completions(messages, date(2024, 1, 15))
+        self.assertIn("888", completed)
+
     def test_ignores_app_share_from_yesterday(self):
         """App-format messages from yesterday should not count."""
         messages = [_make_message("777", "OldUser was playing\n1 finished game of Wordle", "2024-01-14")]
         completed = find_wordle_completions(messages, date(2024, 1, 15))
         self.assertNotIn("777", completed)
+
+    def test_ignores_playing_from_yesterday(self):
+        """A 'was playing' message from yesterday should not suppress today's reminder."""
+        messages = [_make_message("889", "timbo was playing", "2024-01-14")]
+        completed = find_wordle_completions(messages, date(2024, 1, 15))
+        self.assertNotIn("889", completed)
 
     def test_empty_messages(self):
         self.assertEqual(find_wordle_completions([], date(2024, 1, 15)), set())

@@ -3,7 +3,10 @@ import os
 import random
 import urllib.request
 import urllib.error
-from datetime import date, timezone, datetime
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
+
+UK_TZ = ZoneInfo("Europe/London")
 
 DISCORD_API_BASE = "https://discord.com/api/v10"
 
@@ -58,7 +61,8 @@ def find_wordle_completions(messages: list[dict], today: date) -> set[str]:
         content = msg.get("content", "")
         is_standard_share = "Wordle" in content and "/6" in content
         is_app_share = "finished game" in content and "Wordle" in content
-        if is_standard_share or is_app_share:
+        is_playing = "was playing" in content
+        if is_standard_share or is_app_share or is_playing:
             author_id = msg.get("author", {}).get("id")
             if author_id:
                 completed.add(author_id)
@@ -86,7 +90,7 @@ def lambda_handler(event: dict, context) -> dict:
     channel_id = os.environ["CHANNEL_ID"]
     user_ids = [uid.strip() for uid in os.environ["USER_IDS"].split(",") if uid.strip()]
 
-    today = datetime.now(tz=timezone.utc).date()
+    today = datetime.now(tz=UK_TZ).date()
     wordle_number = get_wordle_number(today)
 
     messages = get_recent_messages(channel_id, token)
