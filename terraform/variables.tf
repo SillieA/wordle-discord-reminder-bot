@@ -28,6 +28,6 @@ variable "user_ids" {
 
 variable "schedule" {
   type        = string
-  default     = "cron(0 21 * * ? *)"
-  description = "EventBridge schedule expression (default: 9 PM UTC daily)"
+  default     = "cron(0 20 * * ? *)"
+  description = "EventBridge schedule expression (default: 9 PM BST / 8 PM UTC daily)"
 }
