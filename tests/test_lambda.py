@@ -94,6 +94,36 @@ class TestFindWordleCompletions(unittest.TestCase):
         completed = find_wordle_completions(messages, date(2024, 1, 15))
         self.assertIn("888", completed)
 
+    def test_detects_were_playing_group_share(self):
+        """'were playing' (plural) group activity shares should suppress the reminder."""
+        messages = [_make_message("890", "JoeTheLandWiltshire and SillieA were playing\n2 finished games of Wordle", self.TODAY)]
+        completed = find_wordle_completions(messages, date(2024, 1, 15))
+        self.assertTrue(len(completed) > 0)
+
+    def test_detects_completion_in_embed(self):
+        """Wordle completions hidden inside embed fields should be detected."""
+        msg = {
+            "id": "embed_msg",
+            "content": "",
+            "timestamp": f"{self.TODAY}T10:00:00.000000+00:00",
+            "author": {},  # no id — simulates app/webhook without author id
+            "embeds": [{"description": "timbo was playing\n1 finished game of Wordle"}],
+        }
+        completed = find_wordle_completions([msg], date(2024, 1, 15))
+        self.assertTrue(len(completed) > 0)
+
+    def test_detects_completion_no_author_id(self):
+        """When author ID is missing the sentinel is used and reminder is still suppressed."""
+        msg = {
+            "id": "no_author_msg",
+            "content": "SomeUser was playing\n1 finished game of Wordle",
+            "timestamp": f"{self.TODAY}T10:00:00.000000+00:00",
+            "author": {},  # no id field
+            "embeds": [],
+        }
+        completed = find_wordle_completions([msg], date(2024, 1, 15))
+        self.assertTrue(len(completed) > 0)
+
     def test_ignores_app_share_from_yesterday(self):
         """App-format messages from yesterday should not count."""
         messages = [_make_message("777", "OldUser was playing\n1 finished game of Wordle", "2024-01-14")]

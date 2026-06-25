@@ -50,7 +50,7 @@ def get_recent_messages(channel_id: str, token: str) -> list[dict]:
 
 
 def find_wordle_completions(messages: list[dict], today: date) -> set[str]:
-    """Return user IDs that have posted a Wordle result today."""
+    """Return user IDs (or sentinels) for any Wordle completion posted today."""
     today_str = today.isoformat()
     completed = set()
     for msg in messages:
@@ -59,13 +59,26 @@ def find_wordle_completions(messages: list[dict], today: date) -> set[str]:
         if not timestamp.startswith(today_str):
             continue
         content = msg.get("content", "")
-        is_standard_share = "Wordle" in content and "/6" in content
-        is_app_share = "finished game" in content and "Wordle" in content
-        is_playing = "was playing" in content
+        # Also search embed fields — Wordle Activity shares may put text in embeds
+        embed_text = " ".join(
+            " ".join([
+                e.get("title", ""),
+                e.get("description", ""),
+                " ".join(f.get("value", "") for f in e.get("fields", [])),
+            ])
+            for e in msg.get("embeds", [])
+        )
+        full_text = f"{content} {embed_text}"
+        is_standard_share = "Wordle" in full_text and "/6" in full_text
+        is_app_share = "finished game" in full_text and "Wordle" in full_text
+        # "was playing" covers single-user activity shares; "were playing" covers group shares
+        is_playing = "was playing" in full_text or "were playing" in full_text
         if is_standard_share or is_app_share or is_playing:
-            author_id = msg.get("author", {}).get("id")
-            if author_id:
-                completed.add(author_id)
+            # Use the author's ID when available; fall back to a sentinel so that
+            # app/webhook messages (which may lack a standard author ID) still
+            # suppress the reminder.
+            author_id = msg.get("author", {}).get("id") or "WORDLE_APP"
+            completed.add(author_id)
     return completed
 
 
