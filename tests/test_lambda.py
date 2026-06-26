@@ -348,5 +348,47 @@ class TestLambdaHandlerDebugFlag(unittest.TestCase):
         mock_log.assert_not_called()
 
 
+class TestLambdaHandlerDebugOnly(unittest.TestCase):
+    ENV = {
+        "DISCORD_TOKEN": "test-token",
+        "CHANNEL_ID": "99999",
+        "USER_IDS": "111,222",
+    }
+    TODAY = date(2024, 1, 15)
+
+    @patch("lambda_function.datetime")
+    @patch("lambda_function.send_reminder")
+    @patch("lambda_function.get_recent_messages")
+    @patch("lambda_function.log_recent_messages")
+    def test_debug_only_logs_and_returns_early(self, mock_log, mock_get_msgs, mock_send, mock_dt):
+        """debug_only=True should log messages and return without sending a reminder."""
+        mock_dt.now.return_value.date.return_value = self.TODAY
+        mock_get_msgs.return_value = []
+
+        with patch.dict(os.environ, self.ENV):
+            result = lambda_handler({"debug_only": True}, None)
+
+        mock_log.assert_called_once()
+        mock_send.assert_not_called()
+        self.assertEqual(result["statusCode"], 200)
+        self.assertEqual(result["body"], "Debug log complete")
+
+    @patch("lambda_function.datetime")
+    @patch("lambda_function.send_reminder")
+    @patch("lambda_function.get_recent_messages")
+    @patch("lambda_function.log_recent_messages")
+    def test_debug_only_false_continues_normally(self, mock_log, mock_get_msgs, mock_send, mock_dt):
+        """debug_only=False (or absent) should not skip reminder logic."""
+        mock_dt.now.return_value.date.return_value = self.TODAY
+        mock_get_msgs.return_value = []
+        mock_send.return_value = {"id": "msg"}
+
+        with patch.dict(os.environ, self.ENV):
+            result = lambda_handler({"debug_only": False}, None)
+
+        mock_send.assert_called_once()
+        self.assertNotEqual(result["body"], "Debug log complete")
+
+
 if __name__ == "__main__":
     unittest.main()

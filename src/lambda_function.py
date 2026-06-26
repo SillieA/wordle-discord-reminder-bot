@@ -116,8 +116,13 @@ def lambda_handler(event: dict, context) -> dict:
 
     messages = get_recent_messages(channel_id, token)
 
-    if os.environ.get("DEBUG_MESSAGES", "").lower() == "true":
+    debug_only = bool(event.get("debug_only"))
+    if debug_only or os.environ.get("DEBUG_MESSAGES", "").lower() == "true":
         log_recent_messages(messages)
+
+    if debug_only:
+        print("debug_only mode: skipping reminder logic.")
+        return {"statusCode": 200, "body": "Debug log complete"}
 
     completed = find_wordle_completions(messages, today)
 
