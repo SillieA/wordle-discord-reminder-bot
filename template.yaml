@@ -26,6 +26,16 @@ Parameters:
       EventBridge schedule expression for 9 PM UK time.
       Use cron(0 21 * * ? *) for GMT (winter) or cron(0 20 * * ? *) for BST (summer).
 
+  DebugMessages:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: >-
+      When set to "true", logs the last 10 raw Discord messages as JSON to
+      CloudWatch on each invocation. Useful for debugging message format issues.
+
 Globals:
   Function:
     Runtime: python3.12
@@ -47,6 +57,7 @@ Resources:
           DISCORD_TOKEN: !Ref DiscordToken
           CHANNEL_ID: !Ref ChannelId
           USER_IDS: !Ref UserIds
+          DEBUG_MESSAGES: !Ref DebugMessages
       Events:
         DailySchedule:
           Type: Schedule

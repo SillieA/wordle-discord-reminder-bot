@@ -97,6 +97,14 @@ def send_reminder(channel_id: str, token: str, user_ids: list[str], wordle_numbe
     return discord_request("POST", f"/channels/{channel_id}/messages", token, body)
 
 
+def log_recent_messages(messages: list[dict], count: int = 10) -> None:
+    """Log the most recent messages in raw JSON format for debugging."""
+    sample = messages[:count]
+    print(f"DEBUG: last {len(sample)} message(s) from channel (raw JSON):")
+    for i, msg in enumerate(sample):
+        print(f"DEBUG message [{i}]: {json.dumps(msg)}")
+
+
 def lambda_handler(event: dict, context) -> dict:
     """AWS Lambda entry point."""
     token = os.environ["DISCORD_TOKEN"]
@@ -107,6 +115,10 @@ def lambda_handler(event: dict, context) -> dict:
     wordle_number = get_wordle_number(today)
 
     messages = get_recent_messages(channel_id, token)
+
+    if os.environ.get("DEBUG_MESSAGES", "").lower() == "true":
+        log_recent_messages(messages)
+
     completed = find_wordle_completions(messages, today)
 
     if completed:
