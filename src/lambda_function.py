@@ -117,7 +117,8 @@ def lambda_handler(event: dict, context) -> dict:
     messages = get_recent_messages(channel_id, token)
 
     debug_only = bool(event.get("debug_only"))
-    if debug_only or os.environ.get("DEBUG_MESSAGES", "").lower() == "true":
+    dry_run = bool(event.get("dry_run"))
+    if debug_only or dry_run or os.environ.get("DEBUG_MESSAGES", "").lower() == "true":
         log_recent_messages(messages)
 
     if debug_only:
@@ -129,6 +130,10 @@ def lambda_handler(event: dict, context) -> dict:
     if completed:
         print("At least one user has already posted their Wordle result. No reminder needed.")
         return {"statusCode": 200, "body": "No reminder needed"}
+
+    if dry_run:
+        print(f"dry_run mode: would send reminder to {len(user_ids)} user(s): {user_ids}")
+        return {"statusCode": 200, "body": f"Dry run complete — would remind {len(user_ids)} user(s)"}
 
     print(f"Sending reminder to {len(user_ids)} user(s): {user_ids}")
     send_reminder(channel_id, token, user_ids, wordle_number)
