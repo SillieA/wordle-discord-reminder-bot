@@ -31,3 +31,9 @@ variable "schedule" {
   default     = "cron(0 20 * * ? *)"
   description = "EventBridge schedule expression (default: 9 PM BST / 8 PM UTC daily)"
 }
+
+variable "debug_messages" {
+  type        = string
+  default     = "true"
+  description = "When \"true\", logs the last 10 raw Discord messages as JSON to CloudWatch on each invocation. Useful for debugging message format issues."
+}

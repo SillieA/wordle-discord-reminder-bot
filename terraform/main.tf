@@ -35,9 +35,10 @@ resource "aws_lambda_function" "wordle_reminder" {
 
   environment {
     variables = {
-      DISCORD_TOKEN = var.discord_token
-      CHANNEL_ID    = var.channel_id
-      USER_IDS      = var.user_ids
+      DISCORD_TOKEN  = var.discord_token
+      CHANNEL_ID     = var.channel_id
+      USER_IDS       = var.user_ids
+      DEBUG_MESSAGES = var.debug_messages
     }
   }
 }
