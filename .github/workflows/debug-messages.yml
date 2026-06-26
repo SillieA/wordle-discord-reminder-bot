@@ -2,6 +2,17 @@ name: Debug Discord Channel Messages
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: |
+          debug_only — log raw messages only, skip all reminder logic.
+          dry_run    — log messages, run full detection logic, but do NOT send the reminder.
+        required: true
+        default: dry_run
+        type: choice
+        options:
+          - dry_run
+          - debug_only
 
 permissions:
   contents: read
@@ -17,12 +28,18 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Invoke Lambda in debug-only mode
+      - name: Invoke Lambda
         run: |
+          MODE="${{ inputs.mode }}"
+          if [ "$MODE" = "debug_only" ]; then
+            PAYLOAD='{"debug_only": true}'
+          else
+            PAYLOAD='{"dry_run": true}'
+          fi
           RESPONSE=$(aws lambda invoke \
             --function-name WordleReminderBot \
             --cli-binary-format raw-in-base64-out \
-            --payload '{"debug_only": true}' \
+            --payload "$PAYLOAD" \
             --log-type Tail \
             /tmp/lambda-response.json)
           echo "=== Lambda response ==="

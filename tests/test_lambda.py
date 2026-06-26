@@ -390,5 +390,64 @@ class TestLambdaHandlerDebugOnly(unittest.TestCase):
         self.assertNotEqual(result["body"], "Debug log complete")
 
 
+class TestLambdaHandlerDryRun(unittest.TestCase):
+    ENV = {
+        "DISCORD_TOKEN": "test-token",
+        "CHANNEL_ID": "99999",
+        "USER_IDS": "111,222",
+    }
+    TODAY = date(2024, 1, 15)
+
+    @patch("lambda_function.datetime")
+    @patch("lambda_function.send_reminder")
+    @patch("lambda_function.get_recent_messages")
+    @patch("lambda_function.log_recent_messages")
+    def test_dry_run_logs_and_does_not_send(self, mock_log, mock_get_msgs, mock_send, mock_dt):
+        """dry_run=True should log messages, run detection, but not send a reminder."""
+        mock_dt.now.return_value.date.return_value = self.TODAY
+        mock_get_msgs.return_value = []  # no completions → would normally send
+
+        with patch.dict(os.environ, self.ENV):
+            result = lambda_handler({"dry_run": True}, None)
+
+        mock_log.assert_called_once()
+        mock_send.assert_not_called()
+        self.assertEqual(result["statusCode"], 200)
+        self.assertIn("Dry run", result["body"])
+
+    @patch("lambda_function.datetime")
+    @patch("lambda_function.send_reminder")
+    @patch("lambda_function.get_recent_messages")
+    @patch("lambda_function.log_recent_messages")
+    def test_dry_run_no_reminder_when_completed(self, mock_log, mock_get_msgs, mock_send, mock_dt):
+        """dry_run=True when wordle already completed should return 'No reminder needed'."""
+        mock_dt.now.return_value.date.return_value = self.TODAY
+        mock_get_msgs.return_value = [
+            _make_message("111", "Wordle 934 3/6\n⬜🟨🟩⬜⬜", self.TODAY.isoformat())
+        ]
+
+        with patch.dict(os.environ, self.ENV):
+            result = lambda_handler({"dry_run": True}, None)
+
+        mock_send.assert_not_called()
+        self.assertIn("No reminder needed", result["body"])
+
+    @patch("lambda_function.datetime")
+    @patch("lambda_function.send_reminder")
+    @patch("lambda_function.get_recent_messages")
+    @patch("lambda_function.log_recent_messages")
+    def test_dry_run_false_sends_normally(self, mock_log, mock_get_msgs, mock_send, mock_dt):
+        """dry_run=False (or absent) should not suppress sending."""
+        mock_dt.now.return_value.date.return_value = self.TODAY
+        mock_get_msgs.return_value = []
+        mock_send.return_value = {"id": "msg"}
+
+        with patch.dict(os.environ, self.ENV):
+            result = lambda_handler({"dry_run": False}, None)
+
+        mock_send.assert_called_once()
+        self.assertNotIn("Dry run", result["body"])
+
+
 if __name__ == "__main__":
     unittest.main()
