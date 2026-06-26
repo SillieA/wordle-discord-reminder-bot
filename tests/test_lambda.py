@@ -14,6 +14,7 @@ from lambda_function import (
     find_wordle_completions,
     get_wordle_number,
     lambda_handler,
+    log_recent_messages,
     send_reminder,
 )
 
@@ -252,6 +253,99 @@ class TestSendReminder(unittest.TestCase):
         send_reminder("channel123", "token456", ["999"], 1)
         _method, _path, _token, body = mock_req.call_args.args
         self.assertEqual(body["allowed_mentions"]["parse"], [])
+
+
+class TestLogRecentMessages(unittest.TestCase):
+    def test_logs_up_to_ten_messages(self):
+        """log_recent_messages should print one line per message, capped at 10."""
+        messages = [_make_message(str(i), f"msg {i}", "2024-01-15") for i in range(15)]
+        with patch("builtins.print") as mock_print:
+            log_recent_messages(messages)
+        # One header line + 10 message lines = 11 print calls
+        self.assertEqual(mock_print.call_count, 11)
+
+    def test_logs_fewer_than_ten_when_short(self):
+        """When fewer than 10 messages exist, all are logged."""
+        messages = [_make_message("1", "hello", "2024-01-15")]
+        with patch("builtins.print") as mock_print:
+            log_recent_messages(messages)
+        self.assertEqual(mock_print.call_count, 2)
+
+    def test_output_contains_valid_json(self):
+        """Each message line must contain valid JSON of the original dict."""
+        msg = _make_message("42", "Wordle 934 3/6", "2024-01-15")
+        with patch("builtins.print") as mock_print:
+            log_recent_messages([msg])
+        # Second call (index 1) is the message line
+        message_line = mock_print.call_args_list[1].args[0]
+        # Extract the JSON object starting at the first '{'
+        json_str = message_line[message_line.index("{"):]
+        parsed = json.loads(json_str)
+        self.assertEqual(parsed["author"]["id"], "42")
+
+    def test_logs_empty_list(self):
+        """An empty message list should only produce the header line."""
+        with patch("builtins.print") as mock_print:
+            log_recent_messages([])
+        self.assertEqual(mock_print.call_count, 1)
+
+
+class TestLambdaHandlerDebugFlag(unittest.TestCase):
+    ENV = {
+        "DISCORD_TOKEN": "test-token",
+        "CHANNEL_ID": "99999",
+        "USER_IDS": "111,222",
+    }
+    TODAY = date(2024, 1, 15)
+
+    @patch("lambda_function.datetime")
+    @patch("lambda_function.send_reminder")
+    @patch("lambda_function.get_recent_messages")
+    @patch("lambda_function.log_recent_messages")
+    def test_debug_flag_true_calls_log(self, mock_log, mock_get_msgs, mock_send, mock_dt):
+        """When DEBUG_MESSAGES=true, log_recent_messages is called."""
+        mock_dt.now.return_value.date.return_value = self.TODAY
+        mock_get_msgs.return_value = []
+        mock_send.return_value = {"id": "msg"}
+
+        with patch.dict(os.environ, {**self.ENV, "DEBUG_MESSAGES": "true"}):
+            lambda_handler({}, None)
+
+        mock_log.assert_called_once()
+
+    @patch("lambda_function.datetime")
+    @patch("lambda_function.send_reminder")
+    @patch("lambda_function.get_recent_messages")
+    @patch("lambda_function.log_recent_messages")
+    def test_debug_flag_false_skips_log(self, mock_log, mock_get_msgs, mock_send, mock_dt):
+        """When DEBUG_MESSAGES is absent or false, log_recent_messages is not called."""
+        mock_dt.now.return_value.date.return_value = self.TODAY
+        mock_get_msgs.return_value = []
+        mock_send.return_value = {"id": "msg"}
+
+        with patch.dict(os.environ, {**self.ENV, "DEBUG_MESSAGES": "false"}):
+            lambda_handler({}, None)
+
+        mock_log.assert_not_called()
+
+    @patch("lambda_function.datetime")
+    @patch("lambda_function.send_reminder")
+    @patch("lambda_function.get_recent_messages")
+    @patch("lambda_function.log_recent_messages")
+    def test_debug_flag_absent_skips_log(self, mock_log, mock_get_msgs, mock_send, mock_dt):
+        """When DEBUG_MESSAGES env var is not set, log_recent_messages is not called."""
+        mock_dt.now.return_value.date.return_value = self.TODAY
+        mock_get_msgs.return_value = []
+        mock_send.return_value = {"id": "msg"}
+
+        env = {k: v for k, v in self.ENV.items()}
+        env.pop("DEBUG_MESSAGES", None)
+        with patch.dict(os.environ, env, clear=False):
+            # Ensure the key isn't present from the outer environment
+            os.environ.pop("DEBUG_MESSAGES", None)
+            lambda_handler({}, None)
+
+        mock_log.assert_not_called()
 
 
 if __name__ == "__main__":

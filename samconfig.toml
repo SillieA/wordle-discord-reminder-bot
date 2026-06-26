@@ -19,5 +19,6 @@ parameter_overrides = [
   "DiscordToken=YOUR_DISCORD_BOT_TOKEN",
   "ChannelId=YOUR_CHANNEL_ID",
   "UserIds=USER_ID_1,USER_ID_2,USER_ID_3",
-  "Schedule=cron(0 21 * * ? *)"
+  "Schedule=cron(0 21 * * ? *)",
+  "DebugMessages=true"
 ]
