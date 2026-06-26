@@ -68,12 +68,15 @@ def find_wordle_completions(messages: list[dict], today: date) -> set[str]:
             ])
             for e in msg.get("embeds", [])
         )
-        full_text = f"{content} {embed_text}"
+        # Attachment descriptions carry completion info for Wordle app messages,
+        # e.g. "1 finished game of Wordle" or "2 finished games of Wordle"
+        attachment_text = " ".join(
+            a.get("description", "") for a in msg.get("attachments", [])
+        )
+        full_text = f"{content} {embed_text} {attachment_text}"
         is_standard_share = "Wordle" in full_text and "/6" in full_text
         is_app_share = "finished game" in full_text and "Wordle" in full_text
-        # "was playing" covers single-user activity shares; "were playing" covers group shares
-        is_playing = "was playing" in full_text or "were playing" in full_text
-        if is_standard_share or is_app_share or is_playing:
+        if is_standard_share or is_app_share:
             # Use the author's ID when available; fall back to a sentinel so that
             # app/webhook messages (which may lack a standard author ID) still
             # suppress the reminder.
