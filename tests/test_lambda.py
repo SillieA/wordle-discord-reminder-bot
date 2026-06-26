@@ -89,11 +89,24 @@ class TestFindWordleCompletions(unittest.TestCase):
         completed = find_wordle_completions(messages, date(2024, 1, 15))
         self.assertIn("666", completed)
 
-    def test_detects_playing_without_finish(self):
-        """A 'was playing' message alone (e.g. in-progress share) should suppress the reminder."""
+    def test_playing_without_finish_does_not_suppress(self):
+        """A 'was playing' message alone (no finished games) should NOT suppress the reminder."""
         messages = [_make_message("888", "timbo was playing", self.TODAY)]
         completed = find_wordle_completions(messages, date(2024, 1, 15))
-        self.assertIn("888", completed)
+        self.assertNotIn("888", completed)
+
+    def test_detects_completion_via_attachment_description(self):
+        """Wordle app messages with completion info in attachment description should be detected."""
+        msg = {
+            "id": "attach_msg",
+            "content": "Big Poopa Joe was playing",
+            "timestamp": f"{self.TODAY}T12:00:00.000000+00:00",
+            "author": {"id": "999", "username": "Wordle"},
+            "embeds": [],
+            "attachments": [{"description": "1 finished game of Wordle"}],
+        }
+        completed = find_wordle_completions([msg], date(2024, 1, 15))
+        self.assertIn("999", completed)
 
     def test_detects_were_playing_group_share(self):
         """'were playing' (plural) group activity shares should suppress the reminder."""
