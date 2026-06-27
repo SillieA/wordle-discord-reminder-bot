@@ -7,7 +7,7 @@ A serverless Discord bot that sends daily reminders to users who haven't complet
 ## Architecture
 
 ```
-EventBridge (cron: 9 PM UTC daily)
+EventBridge (cron: 9 PM UK time daily, configurable)
         │
         ▼
   AWS Lambda (Python 3.12, arm64, 128 MB)
@@ -32,12 +32,14 @@ EventBridge (cron: 9 PM UTC daily)
 
 ## CI/CD (GitHub Actions)
 
-Two workflows are included in `.github/workflows/`:
+Four workflows are included in `.github/workflows/`:
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `ci.yml` | Every push and pull request | Runs the full unit-test suite (`pytest`) |
+| `ci.yml` | Every push and pull request | Installs `pytest` and runs the unit-test suite |
 | `deploy.yml` | Push to `main` | Runs tests, then deploys via Terraform |
+| `debug-messages.yml` | Manual (`workflow_dispatch`) | Invokes Lambda in `dry_run` or `debug_only` mode and prints CloudWatch log tail |
+| `pages.yml` | Pushes to `main` that change `docs/**`, or manual trigger | Deploys `docs/` to GitHub Pages |
 
 ### Required GitHub Repository Secrets
 
@@ -126,8 +128,8 @@ terraform destroy
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/SillieA/WordleReminderDiscordBot.git
-cd WordleReminderDiscordBot
+git clone https://github.com/SillieA/wordle-discord-reminder-bot.git
+cd wordle-discord-reminder-bot
 ```
 
 ### 2. Build and deploy
@@ -144,7 +146,8 @@ The `--guided` flag walks you through setting the required parameters:
 | `DiscordToken` | Your bot token (input is hidden) |
 | `ChannelId` | Discord channel ID |
 | `UserIds` | Comma-separated user IDs, e.g. `111111,222222,333333` |
-| `Schedule` | Cron expression (default: `cron(0 21 * * ? *)` = 9 PM UTC) |
+| `Schedule` | Cron expression (default: `cron(0 20 * * ? *)` = 9 PM UK time during BST, 8 PM UTC) |
+| `DebugMessages` | `true`/`false` to control raw Discord message logging in CloudWatch |
 
 Your answers are saved to `samconfig.toml` for future deployments. Subsequent deployments only need:
 
@@ -163,6 +166,7 @@ Environment variables are set via SAM parameters in `template.yaml` and passed d
 | `DISCORD_TOKEN` | Bot token |
 | `CHANNEL_ID` | Channel to monitor and post in |
 | `USER_IDS` | Comma-separated list of user IDs to track |
+| `DEBUG_MESSAGES` | When `"true"`, logs the 10 most recent raw messages for debugging |
 
 To update a parameter after deployment:
 
@@ -174,12 +178,14 @@ sam deploy --parameter-overrides "UserIds=111,222,333,444"
 
 ## How It Works
 
-1. **EventBridge** triggers the Lambda function once per day (default: 9 PM UTC)
+1. **EventBridge** triggers the Lambda function once per day (default: `cron(0 20 * * ? *)`)
 2. The Lambda fetches the **last 100 messages** from the configured Discord channel
-3. It looks for messages posted **today** that contain `"Wordle"` and `"/6"` (the standard Wordle share format, e.g. `Wordle 1,234 3/6` or `Wordle 1,234 X/6`)
+3. It looks for messages posted **today** that indicate completion, including:
+   - Standard shares containing `"Wordle"` and `"/6"` (e.g. `Wordle 1,234 3/6` or `Wordle 1,234 X/6`)
+   - Discord app shares containing `"finished game"` and `"Wordle"` (including embed/attachment text)
 4. It calculates the **correct puzzle number** based on the Wordle epoch (puzzle #0 = 2021-06-19)
-5. If **any tracked user** has already posted a matching message, **no reminder message is sent**
-6. If none of the tracked users have posted yet, a reminder message is sent to the channel **@mentioning all tracked users**
+5. If **any user** has already posted a matching completion message, **no reminder message is sent**
+6. If no completion is found, a reminder message is sent to the channel **@mentioning all tracked users**
 7. The reminder text is chosen randomly from built-in templates
 
 **Example reminder:**
@@ -200,7 +206,7 @@ You haven't posted your Wordle #1234 result yet! Get on it! 🧩
 Update the `Schedule` parameter (EventBridge cron syntax, always in UTC):
 
 ```bash
-# 8 PM UTC
+# 9 PM UK time during BST, 8 PM UTC
 sam deploy --parameter-overrides "Schedule=cron(0 20 * * ? *)"
 ```
 
@@ -225,10 +231,9 @@ sam delete
 ## Running Tests Locally
 
 ```bash
+python -m pip install --upgrade pip pytest
 python -m pytest tests/ -v
 ```
-
-No external dependencies are required — the test suite uses only the Python standard library and `unittest.mock`.
 
 ---
 
@@ -240,10 +245,13 @@ wordle-discord-reminder-bot/
 ├── template.yaml               # AWS SAM template (Option B deployment)
 ├── samconfig.toml              # SAM deployment config
 ├── .gitignore
+├── docs/                       # GitHub Pages files (privacy policy / terms)
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml              # Run tests on every push / PR
-│       └── deploy.yml          # Terraform deploy on push to main
+│       ├── deploy.yml          # Terraform deploy on push to main
+│       ├── debug-messages.yml  # Manual Lambda debug/dry-run invocation
+│       └── pages.yml           # Deploy docs/ to GitHub Pages
 ├── terraform/
 │   ├── versions.tf             # Terraform + provider version requirements
 │   ├── variables.tf            # Input variables
